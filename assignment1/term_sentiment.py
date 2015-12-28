@@ -1,17 +1,174 @@
 import sys
+import json
+import pprint
 
-def hw():
-    print 'Hello, world!'
+# get_sentiment_dict reads a file specified by <filename>.
+# The expected line is a two field tab delimited record
+# consiting of term and sentiment scores.
+#
+# Arguments:
+#    filename - File containing term and sentiment values
+#
+# Returns:
+#   sentiment - A python dictionary containing term/sentiment values
+#
+def get_sentiment_dict(filename):
+    fp = open(filename)
+    sentiment = {}
+    for line in fp:
+        key, value = line.split("\t")
+        sentiment[key] = int(value)
+    return sentiment
 
-def lines(fp):
-    print str(len(fp.readlines()))
+
+# get_tweets yields one JSON object representing a single tweet from
+# the file specified by filename.  It will yield tweets until the file has been
+# exhausted.
+#
+# Arguments:
+#    filename - The file containing tweets in JSON format. One per line.
+#
+# Returns:
+#    JSON object - A Python JSON object representing one tweet.
+#
+def get_tweets(filename):
+    fp = open(filename)
+    for line in fp:
+        yield(json.loads(line))
+
+
+# get_tweet_text returns the value associated with the text key found in the
+# JSON object representing the tweet.
+#
+# Arguments:
+#    tweet - A Python JSON object representing a tweet from the Twitter API.
+#
+# Returns:
+#    text - A Python string object value from the text key.
+#
+def get_tweet_text(tweet):
+    text = ""
+    if u'text' in tweet:
+        text = tweet[u'text'].encode("utf-8")
+    return text
+    
+
+# get_words yields one word per tweet until all the words have been exhausted.
+#
+# Arguments:
+#    text - A Python string containing the words to iterate.
+#
+# Returns:
+#    string - a single word string.
+#
+def get_words(text):
+    return [w.lower() for w in text.split()]
+
+
+# get_term_sentiment returns the sentiment score from the sentiment dictionary
+# if the term is not found in the dictionary a score of zero will be returned.
+#
+# Arguments:
+#    sent_dict - A Python dictionary containing term/score name value pairs.
+#    word - A Python string representing a single term.
+#
+# Returnds:
+#    sentiment - the sentiment score found in the sent_dict dictionary; 
+#                otherwise 0.
+#
+def get_term_sentiment(sent_dict, word):
+    sentiment = 0
+    if word in sent_dict:
+        sentiment = sent_dict[word]
+    return sentiment
+
+
+# get_tweet_sentiment adds all the sentiment scores for each term found in the
+# tweet. 
+#
+# Arguments:
+#    sent_dict - A Python dictionary containing term/sentiment name/value pairs.
+#
+# Returns:
+#    sentiment - Sum total of all sentiment scores found for each term in the
+#                tweet.
+#
+def get_tweet_sentiment(sent_dict, tweet):
+    sentiment = 0
+    for word in get_words(get_tweet_text(tweet)):
+        sentiment = sentiment + get_term_sentiment(sent_dict, word)
+    return sentiment
+
+
+# stream_tweet_sentiments yeilds one sentiment score per tweet found in the
+# file specified by filename.
+#
+# Arguments:
+#    sent_dict - A Python dict containing term/sentiment name/value pairs.
+#    filename - A file containing tweets.
+#
+def stream_tweet_sentiments(sent_dict, filename):
+    for tweet in get_tweets(filename):
+        yield(get_tweet_sentiment(sent_dict, tweet))
+
+
+def known_term(sent_dict, term):
+    return term in sent_dict
+
+def unknown_term(sent_dict, term):
+    return not(known_term(sent_dict, term))
+
+
+def get_unknown_terms(sent_dict, text):
+    return [w for w in get_words(text) if unknown_term(sent_dict, w)]
+
+
+def term_count(tweet):
+    return len([w for w in get_words(get_tweet_text(tweet))])
+
+
+def get_tweet_sentiment_avg(sent_dict, tweet, new_dict):
+    sentiment_avg = 0
+    sentiment = get_tweet_sentiment(sent_dict, tweet)
+    terms = get_words(get_tweet_text(tweet))
+    term_count = len(terms)
+    unknown_terms = get_unknown_terms(sent_dict, get_tweet_text(tweet))
+    unknown_count = term_count - len(unknown_terms)
+    if unknown_count > 0:
+        sentiment_avg = sentiment / term_count
+        collect_scores(new_dict, unknown_terms, sentiment_avg)
+    return sentiment_avg
+
+
+def collect_scores(new_dict, terms, score):
+    for term in terms:
+        if term in new_dict:
+            new_dict[term].append(score)
+        else:
+            new_dict[term] = [score]
+
+
+def calc_avg_new_score(new_dict, new_sent):
+    for k, v in new_dict.items():
+        total_score = 0
+        for score in v:
+            total_score = total_score + score
+        new_sent[k] = total_score / len(v)
+
 
 def main():
-    sent_file = open(sys.argv[1])
-    tweet_file = open(sys.argv[2])
-    hw()
-    lines(sent_file)
-    lines(tweet_file)
+    sent_file = sys.argv[1]
+    tweet_file = sys.argv[2]
+    new_dict = {}
+    new_sent = {}
+    sent_dict = get_sentiment_dict(sent_file)
+    for tweet in get_tweets(tweet_file):
+        avg_score = get_tweet_sentiment_avg(sent_dict, tweet, new_dict)
+
+    calc_avg_new_score(new_dict, new_sent)
+    for k, v in new_sent.items():
+        print k, v
+
 
 if __name__ == '__main__':
     main()

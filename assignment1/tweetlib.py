@@ -49,7 +49,7 @@ def get_tweets(filename):
 def get_tweet_text(tweet):
     text = ""
     if u'text' in tweet:
-        text = tweet[u'text']
+        text = tweet[u'text'].encode("utf-8")
     return text
     
 
@@ -62,8 +62,7 @@ def get_tweet_text(tweet):
 #    string - a single word string.
 #
 def get_words(text):
-    for word in text.split():
-        yield(word.encode("utf-8").lower())
+    return [w.lower() for w in text.split()]
 
 
 # get_term_sentiment returns the sentiment score from the sentiment dictionary

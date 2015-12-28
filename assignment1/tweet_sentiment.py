@@ -124,10 +124,6 @@ def get_unknown_terms(sent_dict, text):
     return [w for w in get_words(text) if unknown_term(sent_dict, w)]
 
 
-if __name__ == '__main__':
-    sent_dict = get_sentiment_dict(sys.argv[1])
-    for tweet_score in stream_tweet_sentiments(sent_dict, sys.argv[2]):
-        print tweet_score
 def main():
     sent_file = sys.argv[1]
     tweet_file = sys.argv[2]
