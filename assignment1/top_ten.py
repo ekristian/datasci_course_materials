@@ -122,20 +122,23 @@ def unknown_term(sent_dict, term):
 def get_unknown_terms(sent_dict, text):
     return [w for w in get_words(text) if unknown_term(sent_dict, w)]
 
+def get_hashtags(tweet):
+    retval = []
+    if u'entities' in tweet:
+        retval = tweet[u'entities'].get(u'hashtags',[])
+    for ht in retval:
+        yield(ht[u'text'].encode("utf-8"))
 
-def main():
+
+if __name__ == '__main__':
     tweet_file = sys.argv[1]
-    freq = {}
-    total_terms = 0.0
-    hist = {}
+    hashtag_freq = {}
     for tweet in get_tweets(tweet_file):
-        for w in get_words(get_tweet_text(tweet)):
-            total_terms = total_terms + 1
-            freq[w] = freq.get(w,0.0) + 1
-    for k, v in freq.items():
-        print "%s %0.6f" % (k, v/total_terms)
+        for hashtag in get_hashtags(tweet):
+            hashtag_freq[hashtag] = hashtag_freq.get(hashtag, 0 ) + 1
 
-
-if __name__ == "__main__":
-    main()
-
+    counter = 10
+    for k, v in sorted(hashtag_freq.iteritems(), key=lambda(k, v): (v*-1, k)):
+        if counter > 0:
+            print "%s: %s" % (k, v)
+        counter = counter -1
